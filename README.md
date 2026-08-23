@@ -10,8 +10,9 @@
 ├── js/main.js        # GitHub API, i18n, рендер карточек
 ├── favicon.svg
 └── deploy/
-    ├── Caddyfile     # конфиг Caddy с авто-HTTPS
-    └── deploy.sh     # rsync-деплой на VPS
+    ├── Caddyfile          # конфиг Caddy с авто-HTTPS (root берётся из $SITE_ROOT)
+    ├── docker-compose.yml # вариант деплоя в Docker
+    └── deploy.sh          # rsync-деплой на VPS (без Docker)
 ```
 
 ## Локальный запуск
@@ -41,9 +42,15 @@ www    →  IP_твоего_VPS
 
 Let's Encrypt выпускает сертификат только если домен уже указывает на сервер — сначала DNS, потом Caddy.
 
-### 2. Установка Caddy
+### 2. Установка
 
-Caddy сам получает и автоматически продлевает сертификаты Let's Encrypt — certbot не нужен.
+**Вариант Docker (рекомендуется):**
+
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+**Вариант без Docker:** Caddy из apt — сам получает и автоматически продлевает сертификаты Let's Encrypt, certbot не нужен.
 
 ```bash
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -52,16 +59,26 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo 
 sudo apt update && sudo apt install caddy
 ```
 
-### 3. Конфиг
+### 3. Конфиг и запуск
 
-Замени `example.com` в `deploy/Caddyfile` на свой домен и скопируй на сервер:
+Клонируй репо на сервер, укажи домен и запусти:
 
 ```bash
-scp deploy/Caddyfile user@vps:/tmp/Caddyfile
-ssh user@vps 'sudo mv /tmp/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy'
+git clone git@github.com:PodushkaPIR/aboutme.git && cd aboutme/deploy
+sed -i 's/example.com/твой-домен.com/g' Caddyfile
 ```
 
-### 4. Код сайта
+**Docker:**
+
+```bash
+sudo docker compose up -d
+```
+
+Обновление сайта = `git pull` на сервере → `sudo docker compose restart` (или просто подожди — сайт монтируется как volume, но кеш статики лучше сбросить рестартом). Сертификаты LE хранятся в named volume `caddy_data` — при пересоздании контейнера не теряются. Если раньше ставил системный Caddy — освободи порты: `sudo systemctl disable --now caddy`.
+
+**Без Docker:** замени в Caddyfile `example.com`, скопируй конфиг, положи сайт в `/var/www/aboutme`:
+
+### 4. Код сайта (только для варианта без Docker)
 
 Вариант А — прямо из git (обновление = `git pull`):
 
@@ -92,7 +109,8 @@ sudo ufw allow 443/tcp
 
 ```bash
 curl -I https://твой-домен
-sudo journalctl -u caddy -f   # логи выпуска сертификата
+sudo docker compose logs -f caddy   # Docker: логи выпуска сертификата
+sudo journalctl -u caddy -f         # без Docker: логи выпуска сертификата
 ```
 
 ## Как работает авто-сертификация

@@ -1,5 +1,5 @@
-example.com {
-	root * /var/www/aboutme
+podushkapir.online {
+	root * {$SITE_ROOT:/var/www/aboutme}
 	encode zstd gzip
 	file_server
 
@@ -12,6 +12,6 @@ example.com {
 	}
 }
 
-www.example.com {
-	redir https://example.com{uri} permanent
+www.podushkapir.online {
+	redir https://podushkapir.online{uri} permanent
 }
